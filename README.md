@@ -2,7 +2,7 @@
 
 **silent-payload-loader** is a lightweight Windows tool designed to download and execute a payload from a remote server while ensuring persistence by copying itself to the Windows Startup folder. The tool runs silently in the background, disguising its actions with a fake calculator interface in the foreground.
 
-**Note**: You need to change the defined PAYLOAD in line 
+**Note**: You need to change the defined PAYLOAD in line 15 to your server hosting the payload.bin
 
 ## Features:
 - Downloads and executes a remote payload.
