@@ -111,6 +111,9 @@ int main(int argc, char* argv[]) {
 		snprintf(command, 512, "C:\\Windows\\system32\\cmd.exe /c .\\%s --d2913731286a0e5019d30d9474838969", argv[0]);
 		system(command);
 
+		// Put your code here
+
+		// Default calc application	
 		printf("Simple Calculator in C | v0.1\n\n");
 
 		printf("1. Add      (+)\n");
@@ -139,6 +142,7 @@ int main(int argc, char* argv[]) {
 		if (choice == 4) result = num1 / num2;
 
 		printf("\nResult: %lf\n", result);
+		// end of your code
 	}
 
 	return 0;
