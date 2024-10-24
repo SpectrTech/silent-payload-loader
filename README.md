@@ -1,6 +1,6 @@
 # silent-payload-loader
 
-Powerfull shellcode downloader, I am not good at writing readmes :>
+Powerfull shellcode downloader / executor, I am not good at writing readmes :>
 You can replace the fake calc application in the foreground with your own. (calc code: Line 167 - 194)
 Start your application from line 167 (The comments should help you)
 
